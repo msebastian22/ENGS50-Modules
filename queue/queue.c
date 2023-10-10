@@ -9,80 +9,88 @@
  * 
  */
 
-typedef struct element{
-	void data;
-	struct *element next;
+#include <math.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include "queue.h"
+
+typedef struct element {
+	struct element *next;
+	void* val_p;//pointer to something in q
 } element_t;
 
-typedef void queue_t{                                                          
-  element_t *front;
+typedef struct queue {
+	element_t *front;
 	element_t *back;                                                         
-};
+} iqueue_t;
 
 
 
 queue_t* open(void){
-	queue_t* newQueue = (queue_t*)malloc(sizeof(queue_t));
+	iqueue_t *newQueue = malloc(sizeof(iqueue_t));
     
     if (newQueue == NULL) {
-        // Handle memory allocation error if needed
-        //perror("Memory allocation error");
         return NULL;
     }
-
-    // Initialize front and back pointers to NULL
     newQueue->front = NULL;
     newQueue->back = NULL;
 
-    return newQueue;
+    return (queue_t*)newQueue;
 }
 
 void qclose(queue_t* qp){
-	if(qp == NULL){
+	iqueue_t* iqp = (iqueue_t*)(qp);
+	if(iqp == NULL){
 		return;
 	}
 
-	while (qp->front != NULL) {
-        // Remove and free the front node until the queue is empty
-        node_t* temp = qp->front;
-        qp->front = qp->front->next;
-        free(temp);
-    }
-
-    // Free the queue structure itself
-    free(qp);
+	while (iqp->front != NULL) {
+		iqueue_t *temp = iqp->front;
+		iqp->front = iqp->front->next;
+		free(temp);
+	}
+	free(iqp);
 }
 
 int32_t qput(queue_t *qp, void *elementp){
-    // Create a new node
-    queue_t* newQueue = (queue_t*)malloc(sizeof(queue_t));
-
-    if (newQueue == NULL) {
-        // Handle memory allocation error
-        //perror("Memory allocation error");
+	if (qp == NULL || elementp == NULL) {
         return -1; // Nonzero value for failure
     }
 
-    newQueue->data = elementp;
-    newQueue->next = NULL;
+    // Cast the queue_t pointer to an iqueue_t pointer
+    iqueue_t *iqp = (iqueue_t*)qp;
 
-    if (qp->back == NULL) {
-        // If the queue is empty, set front and back to the new node
-        qp->front = newQueue;
-        qp->back = newQueue;
-    } else {
-        // Otherwise, update the back pointer and link nodes
-        qp->back->next = newQueue;
-        qp->back = newQueue;
+    // Create a new element to represent the element to be added
+    element_t *new_element = (element_t*)malloc(sizeof(element_t));
+    if (new_element == NULL) {
+        return -1; // Nonzero value for failure
     }
 
-    return 0; // Return 0 for success
+    // Set the val_p field to point to the provided elementp
+    new_element->val_p = elementp;
+
+    // Initialize the next field to NULL as it's the last element in the queue
+    new_element->next = NULL;
+
+    // Update the back pointer to point to the new element
+    if (iqp->back == NULL) {
+        // If the queue is empty, set both front and back to the new element
+        iqp->front = new_element;
+        iqp->back = new_element;
+    } else {
+        // Otherwise, update the back element's next pointer
+        iqp->back->next = new_element;
+        // Update the back pointer to the new element
+        iqp->back = new_element;
+    }
+
+    return 0; // Zero for success
 }
 
+
 bool searchfn(void* elementp, const void* keyp) {
-        // Implement your search logic here
-        // Return TRUE if the element matches the key, otherwise return FALSE
-        // You can access skeyp directly here
         return (*(int*)elementp == *(int*)keyp);
 }
 
@@ -90,9 +98,7 @@ void* qsearch(queue_t *qp,  bool (*searchfn)(void* elementp,const void* keyp), c
 
 	element_t *current = qp->front;
     while (current != NULL) {
-        // Call the search function with the current element and key
         if (searchfn(current->data, skeyp)) {
-            // If the search function returns TRUE, return the element
             return current->data;
         }
         current = current->next;
@@ -174,3 +180,5 @@ void qconcat(queue_t *q1p, queue_t *q2p){
     q2p->back = NULL;
     qclose(q2p);
 }
+
+

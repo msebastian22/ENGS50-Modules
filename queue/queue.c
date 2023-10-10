@@ -79,6 +79,7 @@ int32_t qput(queue_t *qp, void *elementp){
     return 0; // Return 0 for success
 }
 
+<<<<<<< HEAD
 bool searchfn(void* elementp, const void* keyp) {
         // Implement your search logic here
         // Return TRUE if the element matches the key, otherwise return FALSE
@@ -173,4 +174,28 @@ void qconcat(queue_t *q1p, queue_t *q2p){
     q2p->front = NULL;
     q2p->back = NULL;
     qclose(q2p);
+=======
+void* qget(queue_t *qp){
+	//check queue isn't null
+	if(qp == NULL){
+		return NULL;
+	}
+
+	frontOrig = qp->front;
+	//Check if the queue is empty, if yes then return null
+	if(frontOrig == NULL){
+		return NULL;
+	}
+	//If the list isn'r empty return the first element and remove it from the queue
+	else{
+		void *firstElement = frontOrig;;
+		qp->front = frontOrig->next;
+		frontOrig->next = NULL;
+		//check if firstElement was the last element in the list
+		if(qp->front == NULL){
+			qp->back = NULL;
+		}
+		return firstElement;
+	}
+>>>>>>> f25042e (Adding get function)
 }

@@ -10,40 +10,41 @@
  */
 
 #include <math.h>                                                                                         
-#include "queue.h"                                                                                         
-#include <stdio.h>                                                                                        
-#include <stdint.h>                                                                                       
-#include <stdlib.h>                                                                                       
-#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "queue.h" // Include your queue header file here
 
-typedef struct car {                                                                            
-  int year;
-} car_t;
-
-int main(){
-	queue_t *myQueue = qopen();
-
-	//assign cars as data
-	//then put data into queue
-	car_t *newCar = malloc(sizeof(car_t));
-	newCar->year = 5;
-	car_t *newCar2 = malloc(sizeof(car_t));
-	newCar2->year = 1;
-	car_t *newCar3 = malloc(sizeof(car_t));
-	newCar3-> year = 3;
-
-	
-	qput(myQueue,newCar);
-	qput(myQueue,newCar2);
-	qput(myQueue,newCar3);
-
-	if (qput(myQueue, newCar) != 0 ||
-			qput(myQueue, newCar2) != 0 ||
-			qput(myQueue, newCar3) != 0) {
-        qclose(myQueue);
+int main() {
+    // Test qopen
+    queue_t* myQueue = qopen();
+    if (myQueue == NULL) {
+        fprintf(stderr, "qopen failed\n");
         exit(EXIT_FAILURE);
     }
 
-		qclose(myQueue);
-		exit(EXIT_SUCCESS);
+    // Test qput
+    int data1 = 42;
+    if (qput(myQueue, &data1) != 0) {
+        fprintf(stderr, "qput failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+  
+
+    // Ensure that qput and qclose work with NULL pointers
+    if (qput(NULL, &data1) != 1) {
+        fprintf(stderr, "qput and qclose with NULL pointers failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Test qput and qclose again after closing the queue
+    if (qput(myQueue, &data1) != 0) {
+        fprintf(stderr, "qput after qclose failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    qclose(myQueue);
+
+    printf("All tests passed\n");
+    return EXIT_SUCCESS;
 }

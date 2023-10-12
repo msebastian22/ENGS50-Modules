@@ -1,201 +1,150 @@
-/* 
- * queue.c --- 
- * 
- * Author: Emma Vejcik
- * Created: 10-10-2023
- * Version: 1.0
- * 
- * Description: 
- * 
- */
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-typedef struct element{
-	void data;
-	struct *element next;
-} element_t;
+typedef struct node {
+    struct node* next;
+    void* input;
+} queueNode;
 
-typedef void queue_t{                                                          
-  element_t *front;
-	element_t *back;                                                         
-};
+typedef struct queue {
+    queueNode* front;
+    queueNode* back;
+} queue_t;
 
+queue_t* qopen(void) {
+    queue_t* queuePointer = (queue_t*)malloc(sizeof(queue_t));
 
-
-queue_t* open(void){
-	queue_t* newQueue = (queue_t*)malloc(sizeof(queue_t));
-    
-    if (newQueue == NULL) {
-        // Handle memory allocation error if needed
-        //perror("Memory allocation error");
+    if (!queuePointer) {
         return NULL;
     }
-
-    // Initialize front and back pointers to NULL
-    newQueue->front = NULL;
-    newQueue->back = NULL;
-
-    return newQueue;
+    queuePointer->front = NULL;
+    queuePointer->back = NULL;
+    return queuePointer;
 }
 
-void qclose(queue_t* qp){
-	if(qp == NULL){
-		return;
-	}
-
-	while (qp->front != NULL) {
-        // Remove and free the front node until the queue is empty
-        node_t* temp = qp->front;
+void qclose(queue_t *qp) {
+    if (!qp) 
+        return;
+    queueNode* currentNode;
+    while (qp->front) {
+        currentNode = qp->front;
         qp->front = qp->front->next;
-        free(temp);
-    }
-
-    // Free the queue structure itself
+        free(currentNode);
+    }  
     free(qp);
 }
 
-int32_t qput(queue_t *qp, void *elementp){
-    // Create a new node
-    queue_t* newQueue = (queue_t*)malloc(sizeof(queue_t));
-
-    if (newQueue == NULL) {
-        // Handle memory allocation error
-        //perror("Memory allocation error");
-        return -1; // Nonzero value for failure
+int32_t qput(queue_t *qp, void *elementp) {
+    if (!qp || !elementp)
+        return 1;
+    queueNode* addedNode = (queueNode*)malloc(sizeof(queueNode));
+    if (!addedNode) {
+        return 1;
     }
+    addedNode->input = elementp;
+    addedNode->next = NULL;
 
-    newQueue->data = elementp;
-    newQueue->next = NULL;
-
-    if (qp->back == NULL) {
-        // If the queue is empty, set front and back to the new node
-        qp->front = newQueue;
-        qp->back = newQueue;
+    if (qp->back) {
+        qp->back->next = addedNode;
     } else {
-        // Otherwise, update the back pointer and link nodes
-        qp->back->next = newQueue;
-        qp->back = newQueue;
+        qp->front = addedNode;
     }
-
-    return 0; // Return 0 for success
+    qp->back = addedNode;
+    return 0;
 }
 
-<<<<<<< HEAD
+void* qget(queue_t *qp) {
+    if (!qp || !qp->front) 
+        return NULL;
+    queueNode* currentNode = qp->front;
+    void* input = currentNode->input;
+    qp->front = qp->front->next;
+
+    if (!qp->front) {
+        qp->back = NULL;
+    }
+    free(currentNode);
+    return input;
+}
+
+
+void qapply(queue_t *qp, void (*fn)(void* elementp)) {
+    if (!qp || !fn) 
+        return;
+    queueNode* currentNode = qp->front;
+    while (currentNode) {
+        fn(currentNode->input);
+        currentNode = currentNode->next;
+    }
+
 bool searchfn(void* elementp, const void* keyp) {
         // Implement your search logic here
         // Return TRUE if the element matches the key, otherwise return FALSE
         // You can access skeyp directly here
         return (*(int*)elementp == *(int*)keyp);
+
 }
 
-void* qsearch(queue_t *qp,  bool (*searchfn)(void* elementp,const void* keyp), const void* skeyp){
+void* qsearch(queue_t *qp, bool (*searchfn)(void* elementp,const void* keyp), const void* skeyp) {
+    if (!qp || !searchfn) 
+        return NULL;
 
-	element_t *current = qp->front;
-    while (current != NULL) {
-        // Call the search function with the current element and key
-        if (searchfn(current->data, skeyp)) {
-            // If the search function returns TRUE, return the element
-            return current->data;
+    queueNode* currentNode = qp->front;
+
+    while (currentNode) {
+        if (searchfn(currentNode->input, skeyp)) {
+            return currentNode->input;
         }
-        current = current->next;
+        currentNode = currentNode->next;
     }
 
-    // Element not found
     return NULL;
-	
 }
 
-void* qremove(queue_t *qp,                                                      
-              bool (*searchfn)(void* elementp,const void* keyp),                
-              const void* skeyp){
+void* qremove(queue_t *qp, bool (*searchfn)(void* elementp,const void* keyp), const void* skeyp) {
+    if (!qp || !searchfn) 
+        return NULL;
+    queueNode* currentNode = qp->front;
+    queueNode* previousNode = NULL;
 
-	if (qp == NULL || searchfn == NULL || skeyp == NULL) {
-        return NULL; // Handle invalid input
-    }
-
-    // Initialize pointers to track the current and previous elements
-    element_t *current = qp->front;
-    element_t *prev = NULL;
-
-    while (current != NULL) {
-        // Call the search function with the current element and key
-        if (searchfn(current->data, skeyp)) {
-            // Element found, remove it from the queue
-            if (prev != NULL) {
-                prev->next = current->next;
+    while (currentNode) {
+        if (searchfn(currentNode->input, skeyp)) {
+            if (previousNode) {
+                previousNode->next = currentNode->next;
             } else {
-                // If the first element matches, update the front pointer
-                qp->front = current->next;
+                qp->front = currentNode->next;
             }
-
-            // If the last element matches, update the back pointer
-            if (current == qp->back) {
-                qp->back = prev;
+            if (currentNode == qp->back) {
+                qp->back = previousNode;
             }
-
-            // Store the element to return
-            void* removedElement = current->data;
-
-            // Free the element structure (not the data)
-            free(current);
-
-            return removedElement;
+            void* input = currentNode->input;
+            free(currentNode);
+            return input;
         }
-
-        // Move to the next element
-        prev = current;
-        current = current->next;
+        previousNode = currentNode;
+        currentNode = currentNode->next;
     }
-
-    // Element not found
     return NULL;
 }
 
-void qconcat(queue_t *q1p, queue_t *q2p){
-	if (q1p == NULL || q2p == NULL) {
-        return; // Handle invalid input
-    }
-
-    // If q2 is empty, there's nothing to concatenate
-    if (q2p->front == NULL) {
+void qconcat(queue_t *q1p, queue_t *q2p) {
+    if (!q1p || !q2p) 
         return;
-    }
 
-    // If q1 is empty, set q1's front and back pointers to q2's front and back pointers
-    if (q1p->front == NULL) {
+    if (!q1p->back) {
         q1p->front = q2p->front;
         q1p->back = q2p->back;
     } else {
-        // If q1 is not empty, connect q1's back to q2's front
         q1p->back->next = q2p->front;
-        q1p->back = q2p->back;
+        if (q2p->back) {
+            q1p->back = q2p->back;
+        }
     }
-
-    // Clear q2 and deallocate it
     q2p->front = NULL;
     q2p->back = NULL;
-    qclose(q2p);
-=======
-void* qget(queue_t *qp){
-	//check queue isn't null
-	if(qp == NULL){
-		return NULL;
-	}
 
-	frontOrig = qp->front;
-	//Check if the queue is empty, if yes then return null
-	if(frontOrig == NULL){
-		return NULL;
-	}
-	//If the list isn'r empty return the first element and remove it from the queue
-	else{
-		void *firstElement = frontOrig;;
-		qp->front = frontOrig->next;
-		frontOrig->next = NULL;
-		//check if firstElement was the last element in the list
-		if(qp->front == NULL){
-			qp->back = NULL;
-		}
-		return firstElement;
-	}
->>>>>>> f25042e (Adding get function)
+    free(q2p);
+    qclose(q2p);
 }

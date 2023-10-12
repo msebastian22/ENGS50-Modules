@@ -2,8 +2,13 @@
  * hash.c -- implements a generic hash table as an indexed set of queues.
  *
  */
-#include <stdint.h>
 #include "hash.h"
+#include "queue.c"
+#include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 /* 
  * SuperFastHash() -- produces a number between 0 and the tablesize-1.
  * 
@@ -55,43 +60,37 @@ static uint32_t SuperFastHash (const char *data,int len,uint32_t tablesize) {
   return hash % tablesize;
 }
 
+typedef struct hashtable {
+	uint32_t size;
+	queue_t **table;
+} hashTable_t;
+
 hashtable_t *hopen(uint32_t hsize){
-	hashtable_t *ht = (hashtable_t *)malloc(sizeof(hashtable_t));
+// Initialize the size and allocate memory for the table
+	hashTable_t *ht = (hashTable_t *)malloc(sizeof(hashTable_t));
     if (ht == NULL) {
         perror("Error: Unable to allocate memory for the hash table.");
         return NULL;
     }
 
-    // Initialize the size and allocate memory for the table
+     
+		ht->table = (queue_t **)calloc((size_t) hsize, sizeof(queue_t **));;
     ht->size = hsize;
-    ht->table = (struct KeyValue **)malloc(hsize * sizeof(struct KeyValue *));
-    if (ht->table == NULL) {
-        perror("Error: Unable to allocate memory for the hash table array.");
-        free(ht);
-        return NULL;
-    }
-
-    // Initialize the table with NULL pointers
-    for (uint32_t i = 0; i < hsize; i++) {
-        ht->table[i] = NULL;
-    }
+		
 
     return ht;
 }
 
 void hclose(hashtable_t *htp){
-	if (ht == NULL) {
+	if (htp == NULL) {
         return;
     }
-
-    for (uint32_t i = 0; i < ht->size; i++) {
-        struct KeyValue *current = ht->table[i];
-        while (current != NULL) {
-            struct KeyValue *temp = current;
-            current = current->next;
-            free((void *)temp->key);
-            free(temp);
+	hashTable_t *ht = htp;
+	for (uint32_t i = 0; i < (ht->size); i++) {
+		if((ht->table[i]) != NULL){
+			qclose((ht->table[i]));
         }
+			
     }
 
     free(ht->table);
@@ -99,38 +98,26 @@ void hclose(hashtable_t *htp){
 }
 
 int32_t hput(hashtable_t *htp, void *ep, const char *key, int keylen){
-	if (ht == NULL || ep == NULL || key == NULL || keylen <= 0) {
+	
+	if (htp == NULL || ep == NULL || key == NULL || keylen <= 0) {
         return -1;  // Invalid input
     }
-
-    uint32_t index = hash_function(key) % ht->size; // Implement a suitable hash function here
-
-    // Create a new key-value pair
-    struct KeyValue *new_pair = create_pair(key, keylen, ep);
-    if (new_pair == NULL) {
-        return -2;  // Memory allocation error
-    }
-
-    if (ht->table[index] == NULL) {
-        // If the slot is empty, insert the pair
-        ht->table[index] = new_pair;
-    } else {
-        // If the slot is not empty, handle collisions by chaining
-        struct KeyValue *current = ht->table[index];
-        while (current != NULL) {
-            if (strcmp(current->key, key) == 0 && current->keylen == keylen) {
-                // Key already exists in the hash table; update the value
-                current->value = ep;
-                free((void *)key); // Free the duplicate key
-                free(new_pair);    // Free the duplicate key-value pair
-                return 1; // Key already exists, value updated
-            }
-            current = current->next;
-        }
-        current = new_pair; // Add the new key-value pair to the end of the chain
-    }
-
-    return 0;  // Success
+	hashTable_t *ht = htp;
+	uint32_t index = SuperFastHash(key, keylen, ht->size); // Implement a suitable hash function here
+	
+	if((ht->table)[index] == NULL){
+		queue_t * qp = qopen();
+		qput(qp, ep);
+		(ht->table)[index] = qp;
+		return 0;
+	}
+	else{
+		queue_t *qp = (ht->table)[index];
+		qput(qp, ep);
+		return 0;
+	}
+    
+    return -1;  // Failure
 }
 
 
@@ -138,14 +125,13 @@ void happly(hashtable_t *htp, void (*fn)(void* ep)) {
     if (htp == NULL) {
         return;
     }
+		hashTable_t *ht = htp;
 
-    for (uint32_t i = 0; i < htp->size; i++) {
-        struct KeyValue *current = htp->table[i];
-        while (current != NULL) {
-            // Apply the user-defined function to the current key-value pair
-            fn(current);
-            current = current->next;
-        }
+    for (uint32_t i = 0; i < (ht->size); i++) {
+			queue_t *qp = (ht->table)[i];
+			if(qp != NULL){
+				qapply(qp, fn);
+			}
     }
 }
 
@@ -153,46 +139,28 @@ void *hsearch(hashtable_t *htp, bool (*searchfn)(void* elementp, const void* sea
 	if (htp == NULL || searchfn == NULL || key == NULL) {
         return NULL;
     }
-
-    for (uint32_t i = 0; i < htp->size; i++) {
-        struct KeyValue *current = htp->table[i];
-        while (current != NULL) {
-					if (searchfn(current, key, keylen)) {
-							return current; // Entry found, return a pointer to the entry
-            }
-            current = current->next;
-        }
-    }
+	hashTable_t *ht = htp;
+	uint32_t index = SuperFastHash(key, keylen, ht->size);
+	queue_t *qp = (ht->table)[index];
+	void *isThere = qsearch(qp, searchfn, key);
+	return isThere;
 		
-    return NULL; // Entry not found
+  
 }
 
 void *hremove(hashtable_t *htp,                                                 
 							bool (*searchfn)(void* elementp, const void* searchkeyp),               
 							const char *key,                                                        
 							int32_t keylen){
-	if (ht == NULL || searchfn == NULL || key == NULL) {
+	if (htp == NULL || searchfn == NULL || key == NULL) {
 		return NULL;
 	}
+	hashTable_t *ht = htp;
+	uint32_t index = SuperFastHash(key, keylen, ht->size);
+	queue_t *qp = (ht->table)[index];
+	void *removed = qremove(qp, searchfn, key);
+	return removed;
+
 	
-	uint32_t index = hash_function(key) % ht->size; // Implement a suitable hash function here
-	
-	struct KeyValue *prev = NULL;
-	struct KeyValue *current = ht->table[index];
-	
-	while (current != NULL) {
-		if (searchfn(current, key, keylen)) {
-			// Entry found, remove it from the hash table
-			if (prev == NULL) {
-				ht->table[index] = current->next;
-			} else {
-				prev->next = current->next;
-			}
-			return current; // Return a pointer to the removed entry
-			}
-		prev = current;
-		current = current->next;
-	}
-	
-	return NULL; // Entry not found
+
 }

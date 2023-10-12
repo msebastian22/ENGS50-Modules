@@ -3,7 +3,11 @@
  *
  */
 #include <stdint.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include "hash.h"
+#include "../queue/queue.h"
+#include <string.h>
 /* 
  * SuperFastHash() -- produces a number between 0 and the tablesize-1.
  * 
@@ -13,6 +17,19 @@
  * Hash.
  */
 #define get16bits(d) (*((const uint16_t *) (d)))
+/*
+typedef struct entry {
+	char *key;
+	void *value;
+	struct entry *next;
+} entry_t;*/
+
+typedef struct hashtable {
+    queue_t **table;
+    int size;
+} hashtable;
+
+//static unsigned long hash_function(const char *key, int keylen, int size);
 
 static uint32_t SuperFastHash (const char *data,int len,uint32_t tablesize) {
   uint32_t hash = len, tmp;
@@ -55,50 +72,89 @@ static uint32_t SuperFastHash (const char *data,int len,uint32_t tablesize) {
   return hash % tablesize;
 }
 
-hashtable_t *hopen(uint32_t hsize){
-	hashtable_t *ht = (hashtable_t *)malloc(sizeof(hashtable_t));
-    if (ht == NULL) {
-        perror("Error: Unable to allocate memory for the hash table.");
+hashtable_t *hopen(uint32_t hsize) {
+    if (hsize <= 0) {
         return NULL;
     }
 
-    // Initialize the size and allocate memory for the table
-    ht->size = hsize;
-    ht->table = (struct KeyValue **)malloc(hsize * sizeof(struct KeyValue *));
-    if (ht->table == NULL) {
-        perror("Error: Unable to allocate memory for the hash table array.");
-        free(ht);
-        return NULL;
-    }
+		hashtable *ht = (hashtable *)malloc(sizeof(hashtable));
+		ht->size = hsize;
+		ht->table = (queue_t **)malloc(sizeof(queue_t *) * hsize);
 
-    // Initialize the table with NULL pointers
-    for (uint32_t i = 0; i < hsize; i++) {
-        ht->table[i] = NULL;
-    }
-
-    return ht;
+		int i = 0;
+		while(i < hsize){
+			queue_t* pq = qopen();
+			ht->table[i] = pq;
+			i++;
+		}
+		return (hashtable_t *)ht;
 }
+			
 
-void hclose(hashtable_t *htp){
-	if (ht == NULL) {
+void hclose(hashtable_t *ht) {
+    hashtable *h = (hashtable *)ht;
+    if (h == NULL) {
         return;
     }
 
-    for (uint32_t i = 0; i < ht->size; i++) {
-        struct KeyValue *current = ht->table[i];
-        while (current != NULL) {
-            struct KeyValue *temp = current;
-            current = current->next;
-            free((void *)temp->key);
-            free(temp);
-        }
-    }
+		int i = 0;
+		while(i < h->size){
+			queue_t *q = h->table[i];
+			while(q != NULL){
+				queue_t *temp = q;
+				temp = q->next;
+				free(temp);
 
-    free(ht->table);
-    free(ht);
+			}
+			i++;
+		}
+
+		free(h->table);
+		free(h);
 }
 
-int32_t hput(hashtable_t *htp, void *ep, const char *key, int keylen){
+int32_t hput(hashtable_t *ht, void *ep, const char *key, int keylen) {
+    if (ht == NULL) {
+        return -1; // Error: Invalid input
+    }
+
+    hashtable *h = (hashtable *)ht;
+    int index = SuperFastHash(key, keylen, h->size);
+
+    // Create a new entry
+    queue_t *pq = (queue_t *)malloc(sizeof(queue_t));
+    if (pq == NULL) {
+        return -1; // Error: Memory allocation failed
+    }
+
+    strcpy(pq->key,key);
+    pq->value = ep;
+    pq->next = NULL;
+
+    if (h->table[index] == NULL) {
+        // No collision, insert as the first entry
+        h->table[index] = pq;
+    } else {
+        // Collision detected, insert at the end of the linked list
+        queue_t *pq2 = h->table[index];
+        while (pq2->next != NULL) {
+            pq2 = pq2->next;
+        }
+        pq2->next = pq;
+    }
+
+    return (int32_t)0; // Success
+}
+
+
+/*static unsigned long hash_function(const char *key, int keylen, int size) {
+    unsigned long hash = 5381;
+    for (int i = 0; i < keylen; i++) {
+        hash = ((hash << 5) + hash) + key[i];
+    }
+    return hash % size;
+		}*/
+/*int32_t hput(hashtable_t *htp, void *ep, const char *key, int keylen){
 	if (ht == NULL || ep == NULL || key == NULL || keylen <= 0) {
         return -1;  // Invalid input
     }
@@ -196,3 +252,4 @@ void *hremove(hashtable_t *htp,
 	
 	return NULL; // Entry not found
 }
+*/

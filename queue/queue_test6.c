@@ -48,6 +48,6 @@ int main() {
     qclose(queue1);
     qclose(queue2);
 
-    return EXIT_SUCCESS;
+    exit(EXIT_SUCCESS);
 }
 

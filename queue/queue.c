@@ -69,6 +69,7 @@ void* qget(queue_t *qp) {
     return input;
 }
 
+
 void qapply(queue_t *qp, void (*fn)(void* elementp)) {
     if (!qp || !fn) 
         return;
@@ -77,6 +78,13 @@ void qapply(queue_t *qp, void (*fn)(void* elementp)) {
         fn(currentNode->input);
         currentNode = currentNode->next;
     }
+
+bool searchfn(void* elementp, const void* keyp) {
+        // Implement your search logic here
+        // Return TRUE if the element matches the key, otherwise return FALSE
+        // You can access skeyp directly here
+        return (*(int*)elementp == *(int*)keyp);
+
 }
 
 void* qsearch(queue_t *qp, bool (*searchfn)(void* elementp,const void* keyp), const void* skeyp) {
@@ -136,5 +144,7 @@ void qconcat(queue_t *q1p, queue_t *q2p) {
     }
     q2p->front = NULL;
     q2p->back = NULL;
+
     free(q2p);
+    qclose(q2p);
 }

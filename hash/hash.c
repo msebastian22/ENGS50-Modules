@@ -6,8 +6,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "hash.h"
-#include "../queue/queue.h"
+#include "queue.h"
 #include <string.h>
+#include <stdbool.h>
 /* 
  * SuperFastHash() -- produces a number between 0 and the tablesize-1.
  * 
@@ -91,8 +92,8 @@ hashtable_t *hopen(uint32_t hsize) {
 }
 			
 
-void hclose(hashtable_t *ht) {
-    hashtable *h = (hashtable *)ht;
+void hclose(hashtable_t *htp) {
+    hashtable *h = (hashtable *)htp;
     if (h == NULL) {
         return;
     }
@@ -100,11 +101,8 @@ void hclose(hashtable_t *ht) {
 		int i = 0;
 		while(i < h->size){
 			queue_t *q = h->table[i];
-			while(q != NULL){
-				queue_t *temp = q;
-				temp = q->next;
-				free(temp);
-
+			if(q != NULL){
+				qclose(q);
 			}
 			i++;
 		}
@@ -113,38 +111,78 @@ void hclose(hashtable_t *ht) {
 		free(h);
 }
 
-int32_t hput(hashtable_t *ht, void *ep, const char *key, int keylen) {
-    if (ht == NULL) {
-        return -1; // Error: Invalid input
+int32_t hput(hashtable_t *htp, void *ep, const char *key, int keylen) {
+    if (htp == NULL || ep == NULL || key == NULL || keylen <= 0) {
+        // Handle invalid input.
+        return -1;  // You can choose a meaningful error code.
     }
 
-    hashtable *h = (hashtable *)ht;
-    int index = SuperFastHash(key, keylen, h->size);
+    hashtable *ht = (hashtable *)htp;
 
-    // Create a new entry
-    queue_t *pq = (queue_t *)malloc(sizeof(queue_t));
-    if (pq == NULL) {
-        return -1; // Error: Memory allocation failed
-    }
+    // Calculate the hash value for the key.
+    uint32_t hash = SuperFastHash(key, keylen, ht->size);
 
-    strcpy(pq->key,key);
-    pq->value = ep;
-    pq->next = NULL;
+    // Use the qput function to add the entry to the appropriate queue.
+    int result = qput(ht->table[hash], ep);
 
-    if (h->table[index] == NULL) {
-        // No collision, insert as the first entry
-        h->table[index] = pq;
-    } else {
-        // Collision detected, insert at the end of the linked list
-        queue_t *pq2 = h->table[index];
-        while (pq2->next != NULL) {
-            pq2 = pq2->next;
-        }
-        pq2->next = pq;
-    }
-
-    return (int32_t)0; // Success
+    return result;
 }
+
+void happly(hashtable_t *htp, void (*fn)(void* ep)){
+
+if (htp == NULL || fn == NULL) {
+        // Handle invalid input.
+        return;
+    }
+
+    hashtable *ht = (hashtable *)htp;
+
+    // Iterate over each queue in the hash table and apply the function to each entry.
+    for (int i = 0; i < ht->size; i++) {
+        queue_t *qp = ht->table[i];
+        if (qp != NULL) {
+            qapply(qp, fn);  // Apply the function to the entries in the queue.
+        }
+    }
+}
+
+void *hsearch(hashtable_t *htp,
+              bool (*searchfn)(void *elementp, const void *searchkeyp),
+              const char *key,
+              int32_t keylen) {
+    if (htp == NULL || searchfn == NULL || key == NULL || keylen <= 0) {
+        // Handle invalid input.
+        return NULL;
+    }
+
+    hashtable *ht = (hashtable *)htp;
+
+    // Calculate the hash value for the key.
+    uint32_t hash = SuperFastHash(key, keylen, ht->size);
+
+    // Use the qsearch function to search for the entry in the appropriate queue.
+    return qsearch(ht->table[hash], searchfn, key);
+}
+
+
+void *hremove(hashtable_t *htp,
+              bool (*searchfn)(void *elementp, const void *searchkeyp),
+              const char *key,
+              int32_t keylen) {
+    if (htp == NULL || searchfn == NULL || key == NULL || keylen <= 0) {
+        // Handle invalid input.
+        return NULL;
+    }
+
+    hashtable *ht = (hashtable *)htp;
+
+    // Calculate the hash value for the key.
+    uint32_t hash = SuperFastHash(key, keylen, ht->size);
+
+    // Use the qremove function to remove and return the entry from the appropriate queue.
+    return qremove(ht->table[hash], searchfn, key);
+}
+
 
 
 /*static unsigned long hash_function(const char *key, int keylen, int size) {

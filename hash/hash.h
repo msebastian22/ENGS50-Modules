@@ -4,8 +4,10 @@
  * key structures.
  *
  */
+
 #include <stdint.h>
 #include <stdbool.h>
+#include "queue.h"
 
 typedef void hashtable_t;	/* representation of a hashtable hidden */
 

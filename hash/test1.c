@@ -12,11 +12,18 @@
 #include <stdlib.h> // Include the standard library for exit()
 #include <string.h>
 #include "hash.h"
+#include "queue.h"
+
+
+void print_entry(void *ep) {
+    int *data = (int *)ep;
+    printf("%d ", *data);
+}
 
 int main() {
     hashtable_t *ht = hopen(10);
     
-    if (ht == NULL) {
+		    if (ht == NULL) {
 			// printf("Hashtable creation failed.\n");
         exit(EXIT_FAILURE);
     }
@@ -24,19 +31,20 @@ int main() {
 		int* value1 = (int*)42;
     int* value2 = (int*)99;
 
-    if (hput(ht, value1, "key1", 4) != 0) {
+		if (hput(ht, value1, "key1", 4) != 0) {
 			//printf("hput failed.\n");
 			//hclose(ht);
-        exit(EXIT_FAILURE);
-    }
-		/*
-
+			exit(EXIT_FAILURE);
+		}
+		
     if (hput(ht, &value2, "key2", 4) != 0) {
 			//printf("hput failed.\n");
-        hclose(ht);
-        exit(EXIT_FAILURE);
-				}*/
+			hclose(ht);
+			exit(EXIT_FAILURE);
+		}
 
+		//happly(ht, print_entry); 
+		
     hclose(ht);
 
     exit(EXIT_SUCCESS);
